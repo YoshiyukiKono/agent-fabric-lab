@@ -1,0 +1,82 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: researcher-app
+  namespace: agents
+data:
+  server.py: |
+    import json
+    import urllib.request
+    from fastapi import FastAPI
+    from pydantic import BaseModel
+
+    app = FastAPI()
+
+    class Task(BaseModel):
+        task: str
+
+    @app.get("/")
+    def root():
+        return {"role": "researcher", "status": "running", "mode": "ollama", "model": "llama3.2:1b"}
+
+    @app.post("/run")
+    def run(task: Task):
+        prompt = (
+            "You are a Researcher Agent. "
+            "Write concise research notes in Japanese for the next Architect Agent. "
+            "Topic: " + task.task
+        )
+
+        payload = {
+            "model": "llama3.2:1b",
+            "prompt": prompt,
+            "stream": False
+        }
+
+        req = urllib.request.Request(
+            "http://ollama:11434/api/generate",
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+
+        with urllib.request.urlopen(req, timeout=120) as res:
+            data = json.loads(res.read().decode("utf-8"))
+
+        return {
+            "role": "researcher",
+            "input": task.task,
+            "output": data.get("response", "")
+        }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: researcher
+  namespace: agents
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: researcher
+  template:
+    metadata:
+      labels:
+        app: researcher
+    spec:
+      containers:
+      - name: researcher
+        image: python:3.12-slim
+        command: ["/bin/sh", "-c"]
+        args:
+          - pip install fastapi uvicorn pydantic && uvicorn server:app --host 0.0.0.0 --port 8080 --app-dir /app
+        ports:
+        - containerPort: 8080
+        volumeMounts:
+        - name: app
+          mountPath: /app/server.py
+          subPath: server.py
+      volumes:
+      - name: app
+        configMap:
+          name: researcher-app

@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: researcher
+  namespace: agents
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: researcher
+  template:
+    metadata:
+      labels:
+        app: researcher
+    spec:
+      containers:
+      - name: researcher
+        image: nginx
+        ports:
+        - containerPort: 80

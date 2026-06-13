@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: agent-app
+  namespace: agents
+data:
+  server.py: |
+    import os
+    from fastapi import FastAPI
+    from pydantic import BaseModel
+
+    ROLE = os.environ.get("ROLE", "agent")
+    app = FastAPI()
+
+    class Task(BaseModel):
+        task: str
+
+    @app.get("/")
+    def root():
+        return {"role": ROLE, "status": "running"}
+
+    @app.post("/run")
+    def run(task: Task):
+        if ROLE == "researcher":
+            result = f"Research notes for: {task.task}"
+        elif ROLE == "architect":
+            result = f"Structured plan based on: {task.task}"
+        elif ROLE == "reviewer":
+            result = f"Review comments for: {task.task}"
+        else:
+            result = f"{ROLE} processed: {task.task}"
+
+        return {
+            "role": ROLE,
+            "input": task.task,
+            "output": result
+        }

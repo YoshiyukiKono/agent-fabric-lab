@@ -1,0 +1,79 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: agent-app
+  namespace: agents
+data:
+  server.py: |
+    import os
+    import json
+    import urllib.request
+    from fastapi import FastAPI
+    from pydantic import BaseModel
+
+    ROLE = os.environ.get("ROLE", "agent")
+    OLLAMA_URL = "http://ollama:11434/api/generate"
+    MODEL = os.environ.get("MODEL", "llama3.2:1b")
+
+    app = FastAPI()
+
+    class ToolCall(BaseModel):
+        input: dict
+
+    @app.get("/")
+    def root():
+        return {"name": ROLE, "status": "running", "protocol": "mini-mcp"}
+
+    @app.get("/.well-known/agent.json")
+    def manifest():
+        return {
+            "name": ROLE,
+            "protocol": "mini-mcp",
+            "tools": [
+                {
+                    "name": ROLE,
+                    "description": f"{ROLE} agent tool",
+                    "endpoint": "/tools/run",
+                    "input_schema": {
+                        "task": "string"
+                    }
+                }
+            ]
+        }
+
+    def call_ollama(prompt):
+        payload = {
+            "model": MODEL,
+            "prompt": prompt,
+            "stream": False
+        }
+        req = urllib.request.Request(
+            OLLAMA_URL,
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=300) as res:
+            data = json.loads(res.read().decode("utf-8"))
+        return data.get("response", "")
+
+    @app.post("/tools/run")
+    def run(call: ToolCall):
+        task = call.input.get("task", "")
+
+        if ROLE == "researcher":
+            prompt = "You are a Researcher Agent. Write concise research notes in Japanese. Topic: " + task
+        elif ROLE == "architect":
+            prompt = "You are an Architect Agent. Structure the following research notes into a clear plan in Japanese: " + task
+        elif ROLE == "reviewer":
+            prompt = "You are a Reviewer Agent. Critically review the following plan in Japanese. Point out risks and improvements: " + task
+        else:
+            prompt = "Process this task in Japanese: " + task
+
+        output = call_ollama(prompt)
+
+        return {
+            "tool": ROLE,
+            "input": task,
+            "output": output
+        }

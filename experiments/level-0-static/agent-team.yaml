@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: architect
+  namespace: agents
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: architect
+  template:
+    metadata:
+      labels:
+        app: architect
+    spec:
+      containers:
+      - name: architect
+        image: nginx
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: reviewer
+  namespace: agents
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: reviewer
+  template:
+    metadata:
+      labels:
+        app: reviewer
+    spec:
+      containers:
+      - name: reviewer
+        image: nginx

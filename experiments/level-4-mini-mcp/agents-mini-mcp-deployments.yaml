@@ -1,0 +1,110 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: researcher
+  namespace: agents
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: researcher
+  template:
+    metadata:
+      labels:
+        app: researcher
+    spec:
+      containers:
+      - name: researcher
+        image: python:3.12-slim
+        command: ["/bin/sh", "-c"]
+        args:
+          - pip install fastapi uvicorn pydantic && uvicorn server:app --host 0.0.0.0 --port 8080 --app-dir /app
+        env:
+        - name: ROLE
+          value: researcher
+        - name: MODEL
+          value: llama3.2:1b
+        ports:
+        - containerPort: 8080
+        volumeMounts:
+        - name: app
+          mountPath: /app/server.py
+          subPath: server.py
+      volumes:
+      - name: app
+        configMap:
+          name: agent-app
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: architect
+  namespace: agents
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: architect
+  template:
+    metadata:
+      labels:
+        app: architect
+    spec:
+      containers:
+      - name: architect
+        image: python:3.12-slim
+        command: ["/bin/sh", "-c"]
+        args:
+          - pip install fastapi uvicorn pydantic && uvicorn server:app --host 0.0.0.0 --port 8080 --app-dir /app
+        env:
+        - name: ROLE
+          value: architect
+        - name: MODEL
+          value: llama3.2:1b
+        ports:
+        - containerPort: 8080
+        volumeMounts:
+        - name: app
+          mountPath: /app/server.py
+          subPath: server.py
+      volumes:
+      - name: app
+        configMap:
+          name: agent-app
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: reviewer
+  namespace: agents
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: reviewer
+  template:
+    metadata:
+      labels:
+        app: reviewer
+    spec:
+      containers:
+      - name: reviewer
+        image: python:3.12-slim
+        command: ["/bin/sh", "-c"]
+        args:
+          - pip install fastapi uvicorn pydantic && uvicorn server:app --host 0.0.0.0 --port 8080 --app-dir /app
+        env:
+        - name: ROLE
+          value: reviewer
+        - name: MODEL
+          value: llama3.2:1b
+        ports:
+        - containerPort: 8080
+        volumeMounts:
+        - name: app
+          mountPath: /app/server.py
+          subPath: server.py
+      volumes:
+      - name: app
+        configMap:
+          name: agent-app

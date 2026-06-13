@@ -1,0 +1,79 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: researcher-app
+  namespace: agents
+data:
+  server.py: |
+    import os
+    from fastapi import FastAPI
+    from pydantic import BaseModel
+    from openai import OpenAI
+
+    app = FastAPI()
+    client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+
+    class Task(BaseModel):
+        task: str
+
+    @app.get("/")
+    def root():
+        return {"role": "researcher", "status": "running", "mode": "openai"}
+
+    @app.post("/run")
+    def run(task: Task):
+        prompt = (
+            "あなたはResearcher Agentです。\n"
+            "次の問いについて、Architect Agentに渡すための調査メモを日本語で簡潔に作ってください。\n\n"
+            "問い:\n"
+            + task.task
+        )
+
+        response = client.responses.create(
+            model="gpt-4.1-mini",
+            input=prompt
+        )
+
+        return {
+            "role": "researcher",
+            "input": task.task,
+            "output": response.output_text
+        }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: researcher
+  namespace: agents
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: researcher
+  template:
+    metadata:
+      labels:
+        app: researcher
+    spec:
+      containers:
+      - name: researcher
+        image: python:3.12-slim
+        command: ["/bin/sh", "-c"]
+        args:
+          - pip install fastapi uvicorn pydantic openai && uvicorn server:app --host 0.0.0.0 --port 8080 --app-dir /app
+        env:
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: openai-secret
+              key: OPENAI_API_KEY
+        ports:
+        - containerPort: 8080
+        volumeMounts:
+        - name: app
+          mountPath: /app/server.py
+          subPath: server.py
+      volumes:
+      - name: app
+        configMap:
+          name: researcher-app

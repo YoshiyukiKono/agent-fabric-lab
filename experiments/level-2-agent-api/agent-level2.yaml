@@ -1,0 +1,169 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: agent-app
+  namespace: agents
+data:
+  server.py: |
+    import os
+    from fastapi import FastAPI
+    from pydantic import BaseModel
+
+    ROLE = os.environ.get("ROLE", "agent")
+    app = FastAPI()
+
+    class Task(BaseModel):
+        task: str = "No task provided"
+
+    @app.get("/")
+    def root():
+        return {"role": ROLE, "status": "running"}
+
+    @app.post("/run")
+    def run(task: Task):
+        return {
+            "role": ROLE,
+            "received_task": task.task,
+            "result": f"{ROLE} processed: {task.task}"
+        }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: researcher
+  namespace: agents
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: researcher
+  template:
+    metadata:
+      labels:
+        app: researcher
+    spec:
+      containers:
+      - name: researcher
+        image: python:3.12-slim
+        command: ["/bin/sh", "-c"]
+        args:
+          - pip install fastapi uvicorn pydantic && uvicorn server:app --host 0.0.0.0 --port 8080 --app-dir /app
+        env:
+        - name: ROLE
+          value: researcher
+        ports:
+        - containerPort: 8080
+        volumeMounts:
+        - name: app
+          mountPath: /app/server.py
+          subPath: server.py
+      volumes:
+      - name: app
+        configMap:
+          name: agent-app
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: researcher
+  namespace: agents
+spec:
+  selector:
+    app: researcher
+  ports:
+  - port: 80
+    targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: architect
+  namespace: agents
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: architect
+  template:
+    metadata:
+      labels:
+        app: architect
+    spec:
+      containers:
+      - name: architect
+        image: python:3.12-slim
+        command: ["/bin/sh", "-c"]
+        args:
+          - pip install fastapi uvicorn pydantic && uvicorn server:app --host 0.0.0.0 --port 8080 --app-dir /app
+        env:
+        - name: ROLE
+          value: architect
+        ports:
+        - containerPort: 8080
+        volumeMounts:
+        - name: app
+          mountPath: /app/server.py
+          subPath: server.py
+      volumes:
+      - name: app
+        configMap:
+          name: agent-app
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: architect
+  namespace: agents
+spec:
+  selector:
+    app: architect
+  ports:
+  - port: 80
+    targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: reviewer
+  namespace: agents
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: reviewer
+  template:
+    metadata:
+      labels:
+        app: reviewer
+    spec:
+      containers:
+      - name: reviewer
+        image: python:3.12-slim
+        command: ["/bin/sh", "-c"]
+        args:
+          - pip install fastapi uvicorn pydantic && uvicorn server:app --host 0.0.0.0 --port 8080 --app-dir /app
+        env:
+        - name: ROLE
+          value: reviewer
+        ports:
+        - containerPort: 8080
+        volumeMounts:
+        - name: app
+          mountPath: /app/server.py
+          subPath: server.py
+      volumes:
+      - name: app
+        configMap:
+          name: agent-app
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: reviewer
+  namespace: agents
+spec:
+  selector:
+    app: reviewer
+  ports:
+  - port: 80
+    targetPort: 8080

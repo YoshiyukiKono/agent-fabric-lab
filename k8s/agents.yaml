@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: researcher
+  namespace: agents
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: researcher } }
+  template:
+    metadata: { labels: { app: researcher } }
+    spec:
+      containers:
+      - name: researcher
+        image: agent-blueprint-agent:local
+        imagePullPolicy: IfNotPresent
+        env:
+        - { name: ROLE, value: researcher }
+        - { name: USE_OLLAMA, value: "true" }
+        - { name: OLLAMA_URL, value: "http://ollama:11434" }
+        - { name: OLLAMA_MODEL, value: "llama3.2:1b" }
+        ports: [{ containerPort: 8080 }]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: researcher
+  namespace: agents
+spec:
+  selector: { app: researcher }
+  ports: [{ port: 80, targetPort: 8080 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: architect
+  namespace: agents
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: architect } }
+  template:
+    metadata: { labels: { app: architect } }
+    spec:
+      containers:
+      - name: architect
+        image: agent-blueprint-agent:local
+        imagePullPolicy: IfNotPresent
+        env:
+        - { name: ROLE, value: architect }
+        - { name: USE_OLLAMA, value: "false" }
+        ports: [{ containerPort: 8080 }]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: architect
+  namespace: agents
+spec:
+  selector: { app: architect }
+  ports: [{ port: 80, targetPort: 8080 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: reviewer
+  namespace: agents
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: reviewer } }
+  template:
+    metadata: { labels: { app: reviewer } }
+    spec:
+      containers:
+      - name: reviewer
+        image: agent-blueprint-agent:local
+        imagePullPolicy: IfNotPresent
+        env:
+        - { name: ROLE, value: reviewer }
+        - { name: USE_OLLAMA, value: "false" }
+        ports: [{ containerPort: 8080 }]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: reviewer
+  namespace: agents
+spec:
+  selector: { app: reviewer }
+  ports: [{ port: 80, targetPort: 8080 }]
