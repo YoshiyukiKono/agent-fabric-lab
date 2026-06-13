@@ -5,45 +5,71 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 
 ROLE = os.environ.get("ROLE", "agent")
-OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://ollama:11434")
-OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.2:1b")
-USE_OLLAMA = os.environ.get("USE_OLLAMA", "false").lower() == "true"
+MODEL = os.environ.get("MODEL", "llama3.2:1b")
+OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://ollama:11434/api/generate")
+
+TOOL_MAP = {
+    "researcher": {"tool": "research", "description": "Research a topic and produce concise notes."},
+    "architect": {"tool": "design", "description": "Transform research notes into a structured plan."},
+    "reviewer": {"tool": "review", "description": "Review a plan and point out risks and improvements."},
+}
 
 app = FastAPI()
 
-class Task(BaseModel):
-    task: str
+class ToolCall(BaseModel):
+    input: dict
+
+def current_tool():
+    return TOOL_MAP.get(ROLE, {"tool": ROLE})["tool"]
 
 @app.get("/")
 def root():
-    return {"role": ROLE, "status": "running", "mode": "ollama" if USE_OLLAMA else "mock", "model": OLLAMA_MODEL if USE_OLLAMA else None}
+    return {"name": ROLE, "status": "running", "protocol": "mini-mcp"}
 
-@app.post("/run")
-def run(task: Task):
-    if USE_OLLAMA:
-        prompt = (
-            f"You are a {ROLE} Agent in a multi-agent knowledge production pipeline. "
-            "Answer concisely in Japanese. "
-            f"Input: {task.task}"
-        )
-        payload = {"model": OLLAMA_MODEL, "prompt": prompt, "stream": False}
-        req = urllib.request.Request(
-            f"{OLLAMA_URL}/api/generate",
-            data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
-        with urllib.request.urlopen(req, timeout=300) as res:
-            data = json.loads(res.read().decode("utf-8"))
-        output = data.get("response", "")
+@app.get("/.well-known/agent.json")
+def manifest():
+    info = TOOL_MAP.get(ROLE, {"tool": ROLE, "description": f"{ROLE} tool"})
+    return {
+        "name": ROLE,
+        "protocol": "mini-mcp",
+        "tools": [{
+            "name": info["tool"],
+            "description": info["description"],
+            "endpoint": "/tools/run",
+            "input_schema": {"task": "string"}
+        }]
+    }
+
+def call_ollama(prompt):
+    payload = {"model": MODEL, "prompt": prompt, "stream": False}
+    req = urllib.request.Request(
+        OLLAMA_URL,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=300) as res:
+        data = json.loads(res.read().decode("utf-8"))
+    return data.get("response", "")
+
+@app.post("/tools/run")
+def run(call: ToolCall):
+    task = call.input.get("task", "")
+
+    if ROLE == "researcher":
+        prompt = "You are a Research Tool. Write concise research notes in Japanese. Topic: " + task
+    elif ROLE == "architect":
+        prompt = "You are a Design Tool. Convert the following notes into a structured plan in Japanese: " + task
+    elif ROLE == "reviewer":
+        prompt = "You are a Review Tool. Critically review the following plan in Japanese. Point out risks and improvements: " + task
     else:
-        if ROLE == "researcher":
-            output = f"Research notes for: {task.task}"
-        elif ROLE == "architect":
-            output = f"Structured plan based on: {task.task}"
-        elif ROLE == "reviewer":
-            output = f"Review comments for: {task.task}"
-        else:
-            output = f"{ROLE} processed: {task.task}"
+        prompt = "Process this task in Japanese: " + task
 
-    return {"role": ROLE, "input": task.task, "output": output}
+    output = call_ollama(prompt)
+
+    return {
+        "agent": ROLE,
+        "tool": current_tool(),
+        "input": task,
+        "output": output
+    }
