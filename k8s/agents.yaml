@@ -15,9 +15,8 @@ spec:
         imagePullPolicy: IfNotPresent
         env:
         - { name: ROLE, value: researcher }
-        - { name: USE_OLLAMA, value: "true" }
-        - { name: OLLAMA_URL, value: "http://ollama:11434" }
-        - { name: OLLAMA_MODEL, value: "llama3.2:1b" }
+        - { name: MODEL, value: llama3.2:1b }
+        - { name: OLLAMA_URL, value: "http://ollama:11434/api/generate" }
         ports: [{ containerPort: 8080 }]
 ---
 apiVersion: v1
@@ -46,7 +45,8 @@ spec:
         imagePullPolicy: IfNotPresent
         env:
         - { name: ROLE, value: architect }
-        - { name: USE_OLLAMA, value: "false" }
+        - { name: MODEL, value: llama3.2:1b }
+        - { name: OLLAMA_URL, value: "http://ollama:11434/api/generate" }
         ports: [{ containerPort: 8080 }]
 ---
 apiVersion: v1
@@ -75,7 +75,8 @@ spec:
         imagePullPolicy: IfNotPresent
         env:
         - { name: ROLE, value: reviewer }
-        - { name: USE_OLLAMA, value: "false" }
+        - { name: MODEL, value: llama3.2:1b }
+        - { name: OLLAMA_URL, value: "http://ollama:11434/api/generate" }
         ports: [{ containerPort: 8080 }]
 ---
 apiVersion: v1
