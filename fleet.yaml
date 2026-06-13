@@ -1,7 +1,1 @@
 defaultNamespace: agents
-
-targetCustomizations:
-  - name: agent-lab
-    clusterSelector:
-      matchLabels:
-        management.cattle.io/cluster-display-name: agent-lab
