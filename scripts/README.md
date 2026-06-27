@@ -151,3 +151,37 @@ sudo docker save ... | gzip | ssh suse@10.110.1.212 \
 
 これはK3sのイメージ転送としてはかなりスマートな方法です。私はこちらに書き換えることをおすすめします。
 
+# Deploy
+
+イメージ import 成功です。次は **Jump Host側**に戻ってデプロイします。
+
+```bash
+cd ~/agent-fabric-lab
+export KUBECONFIG=~/.kube/workload-k3s.yaml
+
+kubectl apply -f k8s/namespace.yaml
+kubectl apply -f k8s/ollama.yaml
+kubectl rollout status deployment/ollama -n agents
+```
+
+Ollama起動後：
+
+```bash
+kubectl exec -n agents deployment/ollama -- ollama pull llama3.2:1b
+```
+
+続けて：
+
+```bash
+kubectl apply -f k8s/agents.yaml
+kubectl apply -f k8s/orchestrator.yaml
+kubectl get pods,svc -n agents
+```
+
+最後に NodePort 確認：
+
+```bash
+kubectl get svc orchestrator -n agents
+```
+
+`PORT(S)` に出る `xxxxx:3xxxx/TCP` の `3xxxx` がアクセス用ポートです。
