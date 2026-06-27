@@ -185,3 +185,51 @@ kubectl get svc orchestrator -n agents
 ```
 
 `PORT(S)` に出る `xxxxx:3xxxx/TCP` の `3xxxx` がアクセス用ポートです。
+
+# 結果
+
+```bash
+ubuntu@ubuntu:~/agent-fabric-lab$ kubectl get pods,svc -n agents
+NAME                                READY   STATUS    RESTARTS   AGE
+pod/architect-7744dcb67-d6nl9       1/1     Running   0          22s
+pod/ollama-5cd78b5c59-7bfjr         1/1     Running   0          3m54s
+pod/orchestrator-689ffc9ffc-wg7h7   1/1     Running   0          10s
+pod/researcher-568799db-k57cd       1/1     Running   0          22s
+pod/reviewer-dfd64b797-fphxf        1/1     Running   0          22s
+
+NAME                   TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)        AGE
+service/architect      ClusterIP   10.43.152.102   <none>        80/TCP         22s
+service/ollama         ClusterIP   10.43.143.88    <none>        11434/TCP      3m54s
+service/orchestrator   NodePort    10.43.240.44    <none>        80:30335/TCP   10s
+service/researcher     ClusterIP   10.43.80.146    <none>        80/TCP         23s
+service/reviewer       ClusterIP   10.43.195.185   <none>        80/TCP         22s
+ubuntu@ubuntu:~/agent-fabric-lab$ kubectl get svc orchestrator -n agents
+NAME           TYPE       CLUSTER-IP     EXTERNAL-IP   PORT(S)        AGE
+orchestrator   NodePort   10.43.240.44   <none>        80:30335/TCP   25s
+ubuntu@ubuntu:~/agent-fabric-lab$
+```
+
+成功です。全部 `Running`、NodePort は **30335** です。
+
+アクセス先は：
+
+```text
+http://10.110.1.212:30335/
+```
+
+Jump Host上で確認するなら：
+
+```bash
+curl http://10.110.1.212:30335/
+```
+
+Macのブラウザから見る場合も同じです。
+
+次に動作確認するなら：
+
+```bash
+kubectl logs -n agents deployment/orchestrator
+kubectl logs -n agents deployment/researcher
+```
+
+まずはブラウザで `http://10.110.1.212:30335/` を開けばOKです。
